@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Catch — quick notes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#3F6B4F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #E8E3D6;
+    --paper-2: #DED8C8;
+    --card: #F7F4EA;
+    --ink: #2B3A2E;
+    --ink-soft: #5B6459;
+    --hairline: #C9C0AC;
+    --accent: #3F6B4F;
+    --accent-ink: #F7F4EA;
+    --alert: #A63D2F;
+    --amber: #B9812E;
+    --shadow: 220 20% 10%;
+    --radius: 3px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper: #1C1A15;
+      --paper-2: #232019;
+      --card: #262319;
+      --ink: #EDE6D6;
+      --ink-soft: #A79E8B;
+      --hairline: #43402F;
+      --accent: #6FA07E;
+      --accent-ink: #16211A;
+      --alert: #D0705F;
+      --amber: #D2A354;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--paper-2) 1px, transparent 1px);
+    background-size: 100% 32px;
+    color:var(--ink);
+    font-family:'Source Serif 4', Georgia, serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  .mono{font-family:'IBM Plex Mono', ui-monospace, monospace;}
+
+  /* ---- Header / capture ---- */
+  header{
+    position:sticky; top:0; z-index:10;
+    background:var(--paper);
+    border-bottom:1px solid var(--hairline);
+    padding: max(14px, env(safe-area-inset-top)) 16px 14px;
+  }
+  .brand{
+    display:flex; align-items:baseline; justify-content:space-between;
+    max-width:640px; margin:0 auto 10px;
+  }
+  .brand h1{
+    font-size:15px; letter-spacing:.14em; text-transform:uppercase;
+    margin:0; font-weight:600; font-family:'IBM Plex Mono',monospace;
+    color:var(--ink);
+  }
+  .status{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;
+    cursor:pointer; background:none; border:0; padding:4px 2px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%; background:var(--ink-soft); flex:none;}
+  .dot.synced{background:var(--accent);}
+  .dot.syncing{background:var(--amber); animation:pulse 1s ease-in-out infinite;}
+  .dot.offline{background:var(--alert);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .capture-wrap{max-width:640px; margin:0 auto; position:relative;}
+  .capture-card{
+    background:var(--card);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    box-shadow: 0 1px 0 var(--hairline), 0 6px 16px -10px hsl(var(--shadow) / .5);
+    padding:14px 14px 10px;
+    position:relative;
+  }
+  .capture-card::before{
+    content:"";
+    position:absolute; left:14px; top:0; bottom:0; width:1px;
+    background: repeating-linear-gradient(to bottom, var(--hairline) 0 4px, transparent 4px 9px);
+    opacity:.6;
+  }
+  textarea#capture{
+    width:100%; resize:none; border:0; background:transparent; outline:none;
+    font-family:'IBM Plex Mono', monospace; font-size:16px; line-height:1.5;
+    color:var(--ink); padding:2px 0 2px 18px; min-height:26px; max-height:200px;
+    caret-color:var(--accent);
+  }
+  textarea#capture::placeholder{color:var(--ink-soft); opacity:.8;}
+  .capture-foot{
+    display:flex; align-items:center; justify-content:flex-end; gap:10px;
+    padding-top:6px; margin-top:4px; border-top:1px dashed var(--hairline);
+    font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;
+  }
+  .capture-foot kbd{
+    font-family:inherit; border:1px solid var(--hairline); border-radius:2px;
+    padding:1px 5px; font-size:10px;
+  }
+  button.primary{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.04em;
+    background:var(--accent); color:var(--accent-ink); border:0; border-radius:2px;
+    padding:8px 14px; cursor:pointer; font-weight:600;
+  }
+  button.primary:active{transform:translateY(1px);}
+  button.ghost{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);
+    background:none; border:1px solid var(--hairline); border-radius:2px;
+    padding:6px 10px; cursor:pointer;
+  }
+
+  .search-row{max-width:640px; margin:10px auto 0; display:flex; gap:8px;}
+  input#search{
+    flex:1; font-family:'IBM Plex Mono',monospace; font-size:13px;
+    background:var(--card); border:1px solid var(--hairline); border-radius:2px;
+    padding:8px 10px; color:var(--ink); outline:none;
+  }
+  input#search::placeholder{color:var(--ink-soft);}
+
+  /* ---- Notes list ---- */
+  main{flex:1; padding:18px 16px 80px;}
+  .stack{max-width:640px; margin:0 auto; display:flex; flex-direction:column; gap:14px;}
+
+  .note{
+    background:var(--card);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px 16px 12px 20px;
+    position:relative;
+    box-shadow: 0 1px 0 var(--hairline);
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .note::before, .note::after{
+    content:""; position:absolute; left:7px; width:6px; height:6px; border-radius:50%;
+    background:var(--paper); border:1px solid var(--hairline);
+  }
+  .note::before{top:14px;}
+  .note::after{bottom:14px;}
+  .note.removing{opacity:0; transform:translateX(12px) scale(.98);}
+
+  .note-body{
+    font-size:15.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word;
+    outline:none; margin-bottom:8px;
+  }
+  .note-body[contenteditable="true"]{
+    cursor:text; border-radius:2px; box-shadow:0 0 0 2px var(--hairline) inset;
+    padding:2px 4px; margin:0 -4px 8px;
+  }
+  .note-meta{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-soft);
+  }
+  .note-meta .left{display:flex; align-items:center; gap:6px;}
+  .note-actions{display:flex; gap:10px;}
+  .note-actions button{
+    background:none; border:0; padding:2px; cursor:pointer;
+    color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; font-size:10.5px;
+  }
+  .note-actions button:hover{color:var(--alert);}
+
+  .empty{
+    max-width:640px; margin:40px auto; text-align:center; color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.7;
+  }
+
+  /* ---- Settings drawer ---- */
+  .backdrop{
+    position:fixed; inset:0; background:rgba(20,18,12,.4); z-index:20;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .backdrop.open{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:fixed; right:0; top:0; bottom:0; width:min(360px,88vw); z-index:21;
+    background:var(--paper); border-left:1px solid var(--hairline);
+    transform:translateX(100%); transition:transform .22s ease;
+    padding: max(18px, env(safe-area-inset-top)) 18px 18px; overflow-y:auto;
+  }
+  .drawer.open{transform:translateX(0);}
+  .drawer h2{font-family:'IBM Plex Mono',monospace; font-size:13px; letter-spacing:.08em; text-transform:uppercase; margin:0 0 14px;}
+  .drawer label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); margin:14px 0 6px;}
+  .drawer input[type=text]{
+    width:100%; font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    background:var(--card); border:1px solid var(--hairline); border-radius:2px;
+    padding:9px 10px; color:var(--ink); outline:none;
+  }
+  .drawer p{font-size:12.5px; line-height:1.6; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+  .drawer .row{display:flex; gap:8px; margin-top:14px;}
+  .close-drawer{position:absolute; top:14px; right:14px; background:none; border:0; font-size:18px; color:var(--ink-soft); cursor:pointer;}
+
+  @media (max-width:480px){
+    .brand h1{font-size:13px;}
+    .note{padding:12px 14px 10px 18px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Catch</h1>
+    <button class="status" id="statusBtn" title="Sync settings">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Sign in to sync</span>
+    </button>
+  </div>
+  <div class="capture-wrap">
+    <div class="capture-card">
+      <textarea id="capture" rows="1" placeholder="What's on your mind…" autofocus></textarea>
+      <div class="capture-foot">
+        <span><kbd>Enter</kbd> to save · <kbd>Shift+Enter</kbd> for a new line</span>
+        <button class="primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+  <div class="search-row">
+    <input type="text" id="search" placeholder="Search your notes…">
+  </div>
+</header>
+
+<main>
+  <div class="stack" id="stack"></div>
+  <div class="empty" id="emptyState" style="display:none;">— no notes yet —<br>catch your first thought above</div>
+</main>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="drawer" id="drawer">
+  <button class="close-drawer" id="closeDrawer">×</button>
+  <h2>Sync to Google Drive</h2>
+  <p id="authState">Not signed in. Notes are saved on this device only.</p>
+  <div class="row">
+    <button class="primary" id="signInBtn" style="display:none;">Sign in with Google</button>
+    <button class="ghost" id="signOutBtn" style="display:none;">Sign out</button>
+  </div>
+
+  <label for="clientId">Google OAuth Client ID</label>
+  <input type="text" id="clientId" placeholder="xxxxxxxx.apps.googleusercontent.com">
+  <p style="margin-top:8px;">One-time setup: create an OAuth Client ID in Google Cloud Console (Web application) and add this page's URL under Authorized JavaScript origins. See README for the full walkthrough. Your notes are stored in a private app-only space in your Drive — Catch never sees your other files.</p>
+  <div class="row">
+    <button class="ghost" id="saveClientId">Save Client ID</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'catch.notes.v1';
+  const CLIENT_ID_KEY = 'catch.clientId';
+  const GRANTED_KEY = 'catch.granted';
+  const DRIVE_FILE_NAME = 'catch-notes.json';
+  const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+
+  let notes = loadLocal();
+  let accessToken = null;
+  let tokenClient = null;
+  let driveFileId = null;
+  let saveTimer = null;
+  let pendingRemoteWrite = false;
+
+  const el = id => document.getElementById(id);
+  const stackEl = el('stack'), emptyEl = el('emptyState');
+  const captureEl = el('capture'), searchEl = el('search');
+  const statusDot = el('statusDot'), statusText = el('statusText');
+  const drawer = el('drawer'), backdrop = el('backdrop');
+
+  // ---------- local storage ----------
+  function loadLocal(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e){ return []; }
+  }
+  function saveLocal(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  }
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  // ---------- rendering ----------
+  function relTime(ts){
+    const d = Date.now() - ts;
+    const m = Math.floor(d/60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m/60);
+    if (h < 24) return h + 'h ago';
+    const days = Math.floor(h/24);
+    if (days < 7) return days + 'd ago';
+    return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  }
+
+  function render(){
+    const q = searchEl.value.trim().toLowerCase();
+    const sorted = [...notes].sort((a,b)=>b.updatedAt-a.updatedAt);
+    const filtered = q ? sorted.filter(n => n.text.toLowerCase().includes(q)) : sorted;
+    stackEl.innerHTML = '';
+    emptyEl.style.display = filtered.length ? 'none' : 'block';
+    for (const n of filtered){
+      const card = document.createElement('div');
+      card.className = 'note';
+      card.dataset.id = n.id;
+      card.innerHTML = `
+        <div class="note-body" contenteditable="false" spellcheck="false"></div>
+        <div class="note-meta">
+          <span class="left">${n.synced ? '<span class="dot synced"></span>' : '<span class="dot offline"></span>'}<span>${relTime(n.updatedAt)}</span></span>
+          <span class="note-actions">
+            <button data-act="edit">edit</button>
+            <button data-act="delete">delete</button>
+          </span>
+        </div>`;
+      card.querySelector('.note-body').textContent = n.text;
+      stackEl.appendChild(card);
+    }
+  }
+
+  stackEl.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    const card = e.target.closest('.note');
+    if (!card) return;
+    const id = card.dataset.id;
+    if (btn && btn.dataset.act === 'delete'){
+      card.classList.add('removing');
+      setTimeout(()=>{
+        notes = notes.filter(n => n.id !== id);
+        persist();
+      }, 150);
+    } else if (btn && btn.dataset.act === 'edit'){
+      const body = card.querySelector('.note-body');
+      body.contentEditable = 'true';
+      body.focus();
+      placeCaretAtEnd(body);
+    }
+  });
+
+  stackEl.addEventListener('focusout', e => {
+    const body = e.target.closest('.note-body');
+    if (!body || body.contentEditable !== 'true') return;
+    body.contentEditable = 'false';
+    const card = body.closest('.note');
+    const id = card.dataset.id;
+    const text = body.textContent.trim();
+    const n = notes.find(x => x.id === id);
+    if (!n) return;
+    if (!text){
+      notes = notes.filter(x => x.id !== id);
+    } else if (text !== n.text){
+      n.text = text; n.updatedAt = Date.now(); n.synced = false;
+    }
+    persist();
+  });
+
+  function placeCaretAtEnd(node){
+    const range = document.createRange();
+    range.selectNodeContents(node); range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+  }
+
+  searchEl.addEventListener('input', render);
+
+  // ---------- capture ----------
+  function autoGrow(){
+    captureEl.style.height = 'auto';
+    captureEl.style.height = Math.min(captureEl.scrollHeight, 200) + 'px';
+  }
+  captureEl.addEventListener('input', autoGrow);
+  captureEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      addNote();
+    }
+  });
+  el('saveBtn').addEventListener('click', addNote);
+
+  function addNote(){
+    const text = captureEl.value.trim();
+    if (!text) return;
+    notes.push({ id: uid(), text, createdAt: Date.now(), updatedAt: Date.now(), synced: false });
+    captureEl.value = '';
+    autoGrow();
+    persist();
+  }
+
+  function persist(){
+    saveLocal();
+    render();
+    scheduleRemoteSave();
+  }
+
+  // ---------- drawer ----------
+  function openDrawer(){ drawer.classList.add('open'); backdrop.classList.add('open'); }
+  function closeDrawerFn(){ drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+  el('statusBtn').addEventListener('click', openDrawer);
+  el('closeDrawer').addEventListener('click', closeDrawerFn);
+  backdrop.addEventListener('click', closeDrawerFn);
+
+  el('clientId').value = localStorage.getItem(CLIENT_ID_KEY) || '';
+  el('saveClientId').addEventListener('click', () => {
+    const val = el('clientId').value.trim();
+    localStorage.setItem(CLIENT_ID_KEY, val);
+    initGoogle();
+  });
+
+  // ---------- sync status UI ----------
+  function setStatus(mode, label){
+    statusDot.className = 'dot ' + mode;
+    statusText.textContent = label;
+  }
+
+  // ---------- Google Identity / Drive ----------
+  function initGoogle(){
+    const clientId = localStorage.getItem(CLIENT_ID_KEY);
+    if (!clientId || typeof google === 'undefined' || !google.accounts){
+      setStatus('', 'Sign in to sync');
+      el('authState').textContent = 'Add your Google OAuth Client ID below to enable sync.';
+      el('signInBtn').style.display = 'none';
+      return;
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: SCOPE,
+      callback: onToken
+    });
+    el('signInBtn').style.display = 'inline-block';
+    el('signInBtn').onclick = () => tokenClient.requestAccessToken({ prompt: localStorage.getItem(GRANTED_KEY) ? '' : 'consent' });
+    el('signOutBtn').onclick = signOut;
+
+    if (localStorage.getItem(GRANTED_KEY)){
+      setStatus('syncing', 'Reconnecting…');
+      tokenClient.requestAccessToken({ prompt: '' });
+    } else {
+      setStatus('', 'Sign in to sync');
+      el('authState').textContent = 'Not signed in. Notes are saved on this device only.';
+    }
+  }
+
+  function onToken(resp){
+    if (resp.error){
+      setStatus('offline', 'Offline (local only)');
+      el('authState').textContent = 'Sign-in needed — click below to connect Drive.';
+      el('signInBtn').style.display = 'inline-block';
+      return;
+    }
+    accessToken = resp.access_token;
+    localStorage.setItem(GRANTED_KEY, '1');
+    el('signInBtn').style.display = 'none';
+    el('signOutBtn').style.display = 'inline-block';
+    el('authState').textContent = 'Signed in. Syncing to your private Drive app storage.';
+    setStatus('syncing', 'Syncing…');
+    driveInitialSync();
+  }
+
+  function signOut(){
+    if (accessToken && google.accounts.oauth2.revoke){
+      google.accounts.oauth2.revoke(accessToken, () => {});
+    }
+    accessToken = null; driveFileId = null;
+    localStorage.removeItem(GRANTED_KEY);
+    el('signOutBtn').style.display = 'none';
+    el('signInBtn').style.display = 'inline-block';
+    el('authState').textContent = 'Not signed in. Notes are saved on this device only.';
+    setStatus('', 'Sign in to sync');
+  }
+
+  async function driveFetch(url, opts={}){
+    opts.headers = Object.assign({}, opts.headers, { Authorization: 'Bearer ' + accessToken });
+    return fetch(url, opts);
+  }
+
+  async function driveInitialSync(){
+    try{
+      const listRes = await driveFetch(
+        'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=' +
+        encodeURIComponent(`name='${DRIVE_FILE_NAME}'`) + '&fields=files(id,name)'
+      );
+      const listJson = await listRes.json();
+      const existing = (listJson.files || [])[0];
+
+      if (existing){
+        driveFileId = existing.id;
+        const fileRes = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+        const remoteNotes = await fileRes.json();
+        notes = mergeNotes(notes, Array.isArray(remoteNotes) ? remoteNotes : []);
+      } else {
+        driveFileId = await createDriveFile();
+      }
+      notes.forEach(n => n.synced = true);
+      saveLocal(); render();
+      setStatus('synced', 'Synced');
+    } catch(err){
+      console.error(err);
+      setStatus('offline', 'Offline (local only)');
+    }
+  }
+
+  function mergeNotes(local, remote){
+    const byId = new Map();
+    for (const n of remote) byId.set(n.id, n);
+    for (const n of local){
+      const r = byId.get(n.id);
+      if (!r || n.updatedAt > r.updatedAt) byId.set(n.id, n);
+    }
+    return [...byId.values()];
+  }
+
+  async function createDriveFile(){
+    const boundary = 'catchboundary';
+    const metadata = { name: DRIVE_FILE_NAME, parents: ['appDataFolder'] };
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+      JSON.stringify(metadata) +
+      `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+      JSON.stringify(notes) +
+      `\r\n--${boundary}--`;
+    const res = await driveFetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+      { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body }
+    );
+    const json = await res.json();
+    return json.id;
+  }
+
+  function scheduleRemoteSave(){
+    if (!accessToken){ return; } // will sync fully on next sign-in
+    setStatus('syncing', 'Saving…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushToDrive, 1200);
+  }
+
+  async function pushToDrive(){
+    if (!accessToken) return;
+    try{
+      if (!driveFileId){ driveFileId = await createDriveFile(); }
+      else {
+        await driveFetch(
+          `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
+          { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(notes) }
+        );
+      }
+      notes.forEach(n => n.synced = true);
+      saveLocal(); render();
+      setStatus('synced', 'Synced');
+    } catch(err){
+      console.error(err);
+      setStatus('offline', 'Save pending');
+    }
+  }
+
+  // ---------- boot ----------
+  render();
+  autoGrow();
+  const gsiScript = document.createElement('script');
+  gsiScript.src = 'https://accounts.google.com/gsi/client';
+  gsiScript.async = true;
+  gsiScript.onload = initGoogle;
+  document.head.appendChild(gsiScript);
+  if (!localStorage.getItem(CLIENT_ID_KEY)) setTimeout(openDrawer, 400);
+})();
+</script>
+</body>
+</html>

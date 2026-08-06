@@ -1,0 +1,13 @@
+{
+  "name": "Catch — quick notes",
+  "short_name": "Catch",
+  "description": "Quick-capture notes synced to Google Drive",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#E8E3D6",
+  "theme_color": "#3F6B4F",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
