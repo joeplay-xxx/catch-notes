@@ -160,7 +160,9 @@
     position:relative;
     box-shadow: 0 1px 0 var(--hairline);
     transition: opacity .15s ease, transform .15s ease;
+    animation: noteIn .3s ease;
   }
+  @keyframes noteIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
   .note::before, .note::after{
     content:""; position:absolute; left:7px; width:6px; height:6px; border-radius:50%;
     background:var(--paper); border:1px solid var(--hairline);
@@ -323,6 +325,13 @@
     return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   }
 
+  let lastSignature = '';
+  function computeSignature(){
+    return notes.filter(n => !n.deleted)
+      .map(n => n.id + '\u0001' + n.updatedAt + '\u0001' + n.text)
+      .sort().join('\u0002');
+  }
+
   function render(){
     const q = searchEl.value.trim().toLowerCase();
     const visible = notes.filter(n => !n.deleted);
@@ -346,6 +355,7 @@
       card.querySelector('.note-body').textContent = n.text;
       stackEl.appendChild(card);
     }
+    lastSignature = computeSignature();
   }
 
   stackEl.addEventListener('click', e => {
@@ -539,7 +549,8 @@
     }
     notes = purgeOldTombstones(notes);
     notes.forEach(n => n.synced = true);
-    saveLocal(); render();
+    saveLocal();
+    if (computeSignature() !== lastSignature) render();
   }
 
   // Always pull-merge-push, never push-before-pull: pushToDrive replaces
@@ -635,13 +646,40 @@
         );
       }
       notes.forEach(n => n.synced = true);
-      saveLocal(); render();
+      saveLocal();
+      if (computeSignature() !== lastSignature) render();
       setStatus('synced', 'Synced');
     } catch(err){
       console.error(err);
       setStatus('offline', 'Save pending');
     }
   }
+
+  // ---------- background sync (near-real-time without a server) ----------
+  // True push notifications would need Google to call a server we don't
+  // have — this is the practical alternative: poll quietly while the tab
+  // is open, and sync instantly the moment you switch back to it.
+  const POLL_INTERVAL_MS = 20000;
+
+  function isEditingNote(){
+    return !!document.querySelector('.note-body[contenteditable="true"]');
+  }
+
+  async function backgroundSync(){
+    if (!accessToken || isEditingNote()) return; // never yank the rug out from under an active edit
+    try{
+      await fullSync();
+    } catch(err){
+      console.error('background sync failed:', err);
+      // access token likely expired mid-session — try a silent reconnect;
+      // onToken() will kick off a fresh sync on its own if it succeeds
+      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }
+
+  setInterval(() => { if (!document.hidden) backgroundSync(); }, POLL_INTERVAL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) backgroundSync(); });
+  window.addEventListener('focus', backgroundSync);
 
   // ---------- boot ----------
   render();
