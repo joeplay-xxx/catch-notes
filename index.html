@@ -305,7 +305,8 @@
 
   function render(){
     const q = searchEl.value.trim().toLowerCase();
-    const sorted = [...notes].sort((a,b)=>b.updatedAt-a.updatedAt);
+    const visible = notes.filter(n => !n.deleted);
+    const sorted = [...visible].sort((a,b)=>b.updatedAt-a.updatedAt);
     const filtered = q ? sorted.filter(n => n.text.toLowerCase().includes(q)) : sorted;
     stackEl.innerHTML = '';
     emptyEl.style.display = filtered.length ? 'none' : 'block';
@@ -335,7 +336,8 @@
     if (btn && btn.dataset.act === 'delete'){
       card.classList.add('removing');
       setTimeout(()=>{
-        notes = notes.filter(n => n.id !== id);
+        const n = notes.find(x => x.id === id);
+        if (n){ n.deleted = true; n.updatedAt = Date.now(); n.synced = false; }
         persist();
       }, 150);
     } else if (btn && btn.dataset.act === 'edit'){
@@ -356,7 +358,7 @@
     const n = notes.find(x => x.id === id);
     if (!n) return;
     if (!text){
-      notes = notes.filter(x => x.id !== id);
+      n.deleted = true; n.updatedAt = Date.now(); n.synced = false;
     } else if (text !== n.text){
       n.text = text; n.updatedAt = Date.now(); n.synced = false;
     }
@@ -389,7 +391,7 @@
   function addNote(){
     const text = captureEl.value.trim();
     if (!text) return;
-    notes.push({ id: uid(), text, createdAt: Date.now(), updatedAt: Date.now(), synced: false });
+    notes.push({ id: uid(), text, createdAt: Date.now(), updatedAt: Date.now(), synced: false, deleted: false });
     captureEl.value = '';
     autoGrow();
     persist();
@@ -498,6 +500,7 @@
       } else {
         driveFileId = await createDriveFile();
       }
+      notes = purgeOldTombstones(notes);
       notes.forEach(n => n.synced = true);
       saveLocal(); render();
       setStatus('synced', 'Synced');
@@ -515,6 +518,15 @@
       if (!r || n.updatedAt > r.updatedAt) byId.set(n.id, n);
     }
     return [...byId.values()];
+  }
+
+  // Deleted notes are kept as tombstones (deleted:true) so other devices
+  // learn about the delete on their next sync, instead of silently
+  // resurrecting the note. Once a tombstone is old enough that every
+  // device has almost certainly seen it, it's safe to drop for good.
+  function purgeOldTombstones(list){
+    const cutoff = Date.now() - 30*24*60*60*1000; // 30 days
+    return list.filter(n => !(n.deleted && n.updatedAt < cutoff));
   }
 
   async function createDriveFile(){
