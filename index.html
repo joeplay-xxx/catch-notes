@@ -284,16 +284,20 @@
   const GRANTED_KEY = 'catch.granted';
   const DRIVE_FILE_NAME = 'catch-notes.json';
   const SCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email';
+
   let notes = loadLocal();
   let accessToken = null;
   let tokenClient = null;
   let driveFileId = null;
   let saveTimer = null;
+  let pendingRemoteWrite = false;
+
   const el = id => document.getElementById(id);
   const stackEl = el('stack'), emptyEl = el('emptyState');
   const captureEl = el('capture'), searchEl = el('search');
   const statusDot = el('statusDot'), statusText = el('statusText');
   const drawer = el('drawer'), backdrop = el('backdrop');
+
   // ---------- local storage ----------
   function loadLocal(){
     try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -305,6 +309,7 @@
   function uid(){
     return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
   }
+
   // ---------- rendering ----------
   function relTime(ts){
     const d = Date.now() - ts;
@@ -317,6 +322,7 @@
     if (days < 7) return days + 'd ago';
     return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   }
+
   function render(){
     const q = searchEl.value.trim().toLowerCase();
     const visible = notes.filter(n => !n.deleted);
@@ -341,6 +347,7 @@
       stackEl.appendChild(card);
     }
   }
+
   stackEl.addEventListener('click', e => {
     const btn = e.target.closest('button');
     const card = e.target.closest('.note');
@@ -360,6 +367,7 @@
       placeCaretAtEnd(body);
     }
   });
+
   stackEl.addEventListener('focusout', e => {
     const body = e.target.closest('.note-body');
     if (!body || body.contentEditable !== 'true') return;
@@ -376,13 +384,16 @@
     }
     persist();
   });
+
   function placeCaretAtEnd(node){
     const range = document.createRange();
     range.selectNodeContents(node); range.collapse(false);
     const sel = window.getSelection();
     sel.removeAllRanges(); sel.addRange(range);
   }
+
   searchEl.addEventListener('input', render);
+
   // ---------- capture ----------
   function autoGrow(){
     captureEl.style.height = 'auto';
@@ -396,6 +407,7 @@
     }
   });
   el('saveBtn').addEventListener('click', addNote);
+
   function addNote(){
     const text = captureEl.value.trim();
     if (!text) return;
@@ -404,28 +416,33 @@
     autoGrow();
     persist();
   }
+
   function persist(){
     saveLocal();
     render();
     scheduleRemoteSave();
   }
+
   // ---------- drawer ----------
   function openDrawer(){ drawer.classList.add('open'); backdrop.classList.add('open'); }
   function closeDrawerFn(){ drawer.classList.remove('open'); backdrop.classList.remove('open'); }
   el('statusBtn').addEventListener('click', openDrawer);
   el('closeDrawer').addEventListener('click', closeDrawerFn);
   backdrop.addEventListener('click', closeDrawerFn);
+
   el('clientId').value = localStorage.getItem(CLIENT_ID_KEY) || '';
   el('saveClientId').addEventListener('click', () => {
     const val = el('clientId').value.trim();
     localStorage.setItem(CLIENT_ID_KEY, val);
     initGoogle();
   });
+
   // ---------- sync status UI ----------
   function setStatus(mode, label){
     statusDot.className = 'dot ' + mode;
     statusText.textContent = label;
   }
+
   // ---------- Google Identity / Drive ----------
   function initGoogle(){
     const clientId = localStorage.getItem(CLIENT_ID_KEY);
@@ -443,6 +460,7 @@
     el('signInBtn').style.display = 'inline-block';
     el('signInBtn').onclick = () => tokenClient.requestAccessToken({ prompt: localStorage.getItem(GRANTED_KEY) ? '' : 'consent' });
     el('signOutBtn').onclick = signOut;
+
     if (localStorage.getItem(GRANTED_KEY)){
       setStatus('syncing', 'Reconnecting…');
       tokenClient.requestAccessToken({ prompt: '' });
@@ -451,6 +469,7 @@
       el('authState').textContent = 'Not signed in. Notes are saved on this device only.';
     }
   }
+
   function onToken(resp){
     if (resp.error){
       setStatus('offline', 'Offline (local only)');
@@ -467,6 +486,7 @@
     showAccountEmail();
     driveInitialSync();
   }
+
   async function showAccountEmail(){
     try{
       const res = await driveFetch('https://www.googleapis.com/oauth2/v3/userinfo');
@@ -479,6 +499,7 @@
       }
     } catch(e){ /* non-critical — just skip the label */ }
   }
+
   function signOut(){
     if (accessToken && google.accounts.oauth2.revoke){
       google.accounts.oauth2.revoke(accessToken, () => {});
@@ -492,56 +513,64 @@
     el('accountLine').textContent = '';
     setStatus('', 'Sign in to sync');
   }
+
   async function driveFetch(url, opts={}){
     opts.headers = Object.assign({}, opts.headers, { Authorization: 'Bearer ' + accessToken });
     return fetch(url, opts);
   }
-  // ---------- Drive file helpers (fixed) ----------
-  // Every device must find and reuse the SAME file in the shared app-data
-  // folder. This locates the canonical 'catch-notes.json' before ever
-  // creating a new one, so all devices write to a single shared file.
-  async function locateOrCreateDriveFile(){
-    const listUrl =
-      'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=' +
-      encodeURIComponent(`name='${DRIVE_FILE_NAME}'`) +
-      '&fields=files(id,name)';
-    const listRes = await driveFetch(listUrl);
-    const listJson = await listRes.json();
-    const existing = (listJson.files || [])[0];
-    if (existing) return existing.id;
-    return createDriveFile();
-  }
+
   async function pullFromDrive(){
-    // Ensure we know the canonical shared file (locate existing, else create)
     if (!driveFileId){
-      driveFileId = await locateOrCreateDriveFile();
+      const listRes = await driveFetch(
+        'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=' +
+        encodeURIComponent(`name='${DRIVE_FILE_NAME}'`) + '&fields=files(id,name)'
+      );
+      const listJson = await listRes.json();
+      const existing = (listJson.files || [])[0];
+      if (existing) driveFileId = existing.id;
     }
-    // Read the shared file and merge whatever is on Drive into local notes
-    const fileRes = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
-    const remoteNotes = await fileRes.json();
-    notes = mergeNotes(notes, Array.isArray(remoteNotes) ? remoteNotes : []);
+
+    if (!driveFileId){
+      driveFileId = await createDriveFile();
+    } else {
+      const fileRes = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+      const remoteNotes = await fileRes.json();
+      notes = mergeNotes(notes, Array.isArray(remoteNotes) ? remoteNotes : []);
+    }
     notes = purgeOldTombstones(notes);
     notes.forEach(n => n.synced = true);
     saveLocal(); render();
   }
+
+  // Always pull-merge-push, never push-before-pull: pushToDrive replaces
+  // the whole remote file with whatever's in the local `notes` array, so
+  // pushing first would silently overwrite changes made on other devices
+  // that this device hasn't merged in yet. Pulling first (which merges,
+  // never overwrites) then pushing the merged result keeps Drive as the
+  // union of what every device knows, and heals it if it's ever drifted.
+  async function fullSync(){
+    await pullFromDrive();
+    await pushToDrive();
+  }
+
   async function driveInitialSync(){
     try{
-      await pullFromDrive();
+      await fullSync();
       setStatus('synced', 'Synced');
     } catch(err){
       console.error(err);
       setStatus('offline', 'Offline (local only)');
     }
   }
+
   async function manualSync(){
     if (!accessToken){ openDrawer(); return; }
     const btn = el('syncNowBtn');
     btn.classList.add('spinning');
     setStatus('syncing', 'Syncing…');
-    clearTimeout(saveTimer); saveTimer = null;
+    clearTimeout(saveTimer);
     try{
-      await pushToDrive();   // flush anything pending from this device first
-      await pullFromDrive(); // then pull in whatever changed elsewhere
+      await fullSync();
       setStatus('synced', 'Synced');
     } catch(err){
       console.error(err);
@@ -551,6 +580,7 @@
     }
   }
   el('syncNowBtn').addEventListener('click', manualSync);
+
   function mergeNotes(local, remote){
     const byId = new Map();
     for (const n of remote) byId.set(n.id, n);
@@ -560,10 +590,16 @@
     }
     return [...byId.values()];
   }
+
+  // Deleted notes are kept as tombstones (deleted:true) so other devices
+  // learn about the delete on their next sync, instead of silently
+  // resurrecting the note. Once a tombstone is old enough that every
+  // device has almost certainly seen it, it's safe to drop for good.
   function purgeOldTombstones(list){
     const cutoff = Date.now() - 30*24*60*60*1000; // 30 days
     return list.filter(n => !(n.deleted && n.updatedAt < cutoff));
   }
+
   async function createDriveFile(){
     const boundary = 'catchboundary';
     const metadata = { name: DRIVE_FILE_NAME, parents: ['appDataFolder'] };
@@ -580,24 +616,24 @@
     const json = await res.json();
     return json.id;
   }
+
   function scheduleRemoteSave(){
     if (!accessToken){ return; } // will sync fully on next sign-in
     setStatus('syncing', 'Saving…');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(pushToDrive, 1200);
   }
+
   async function pushToDrive(){
     if (!accessToken) return;
     try{
-      // FIXED: reuse the existing shared file instead of blindly creating
-      // a new one per device (this was breaking cross-device sync)
-      if (!driveFileId){
-        driveFileId = await locateOrCreateDriveFile();
+      if (!driveFileId){ driveFileId = await createDriveFile(); }
+      else {
+        await driveFetch(
+          `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
+          { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(notes) }
+        );
       }
-      await driveFetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
-        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(notes) }
-      );
       notes.forEach(n => n.synced = true);
       saveLocal(); render();
       setStatus('synced', 'Synced');
@@ -606,6 +642,7 @@
       setStatus('offline', 'Save pending');
     }
   }
+
   // ---------- boot ----------
   render();
   autoGrow();
